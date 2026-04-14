@@ -35,6 +35,10 @@ app.use("/api/orders", orderRoutes);
 app.use("/api/quiz", quizRoutes);
 app.use("/api/artists", artistRoutes);
 
+app.get("/health", (req: Request, res: Response) => {
+  res.status(200).json({ status: "healthy", timestamp: new Date().toISOString() });
+});
+
 app.get("/", (req: Request, res: Response) => {
   res.send("LootThread API is running...");
 });
