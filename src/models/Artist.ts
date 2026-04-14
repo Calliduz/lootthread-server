@@ -17,7 +17,19 @@ const artistSchema = new Schema<ArtistDocument>({
   totalRevenue: { type: Number, default: 0 },
   activeSkinsCount: { type: Number, default: 0 }
 }, {
-  timestamps: true
+  timestamps: true,
+  toJSON: {
+    virtuals: true,
+    transform: function(doc, ret) {
+      const { _id, __v, ...rest } = ret;
+      return { id: _id.toString(), ...rest };
+    }
+  },
+  toObject: { virtuals: true }
+});
+
+artistSchema.virtual('id').get(function() {
+  return this._id.toHexString();
 });
 
 // Hash password before saving

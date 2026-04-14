@@ -8,6 +8,7 @@ import connectDB from "./config/db";
 import productRoutes from "./routes/productRoutes";
 import orderRoutes from "./routes/orderRoutes";
 import quizRoutes from "./routes/quizRoutes";
+import artistRoutes from "./routes/artistRoutes";
 
 dotenv.config();
 
@@ -32,6 +33,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use("/api/products", productRoutes);
 app.use("/api/orders", orderRoutes);
 app.use("/api/quiz", quizRoutes);
+app.use("/api/artists", artistRoutes);
 
 app.get("/", (req: Request, res: Response) => {
   res.send("LootThread API is running...");
