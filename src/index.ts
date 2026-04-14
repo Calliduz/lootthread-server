@@ -1,13 +1,13 @@
-import express, { Express, Request, Response } from 'express';
-import dotenv from 'dotenv';
-import cors from 'cors';
-import helmet from 'helmet';
-import connectDB from './config/db';
+import express, { Express, Request, Response } from "express";
+import dotenv from "dotenv";
+import cors from "cors";
+import helmet from "helmet";
+import connectDB from "./config/db";
 
 // Route imports
-import productRoutes from './routes/productRoutes';
-import orderRoutes from './routes/orderRoutes';
-import quizRoutes from './routes/quizRoutes';
+import productRoutes from "./routes/productRoutes";
+import orderRoutes from "./routes/orderRoutes";
+import quizRoutes from "./routes/quizRoutes";
 
 dotenv.config();
 
@@ -19,20 +19,22 @@ connectDB();
 
 // Middleware
 app.use(helmet());
-app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
-  credentials: true
-}));
+app.use(
+  cors({
+    origin: process.env.FRONTEND_URL || "http://localhost:5173",
+    credentials: true,
+  }),
+);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Routes
-app.use('/api/products', productRoutes);
-app.use('/api/orders', orderRoutes);
-app.use('/api/quiz', quizRoutes);
+app.use("/api/products", productRoutes);
+app.use("/api/orders", orderRoutes);
+app.use("/api/quiz", quizRoutes);
 
-app.get('/', (req: Request, res: Response) => {
-  res.send('LootThread API is running...');
+app.get("/", (req: Request, res: Response) => {
+  res.send("LootThread API is running...");
 });
 
 // Error handling middleware (basic)
@@ -40,7 +42,7 @@ app.use((err: Error, req: Request, res: Response, next: any) => {
   const statusCode = res.statusCode === 200 ? 500 : res.statusCode;
   res.status(statusCode).json({
     message: err.message,
-    stack: process.env.NODE_ENV === 'production' ? null : err.stack,
+    stack: process.env.NODE_ENV === "production" ? null : err.stack,
   });
 });
 
