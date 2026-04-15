@@ -5,14 +5,16 @@ import {
   createProduct,
   updateProduct,
   deleteProduct,
+  getRelatedProducts,
 } from '../controllers/productController';
 import { protect, authorize } from '../middleware/auth';
 
 const router = express.Router();
 
 // Public
-router.get('/',    getProducts);
-router.get('/:id', getProductById);
+router.get('/',           getProducts);
+router.get('/:id',         getProductById);
+router.get('/:id/related', getRelatedProducts);
 
 // Admin
 router.post('/',      protect, authorize('admin'), createProduct);

@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import { AuthRequest } from '../middleware/auth';
 import jwt from 'jsonwebtoken';
 import User from '../models/User';
 import sgMail from '@sendgrid/mail';

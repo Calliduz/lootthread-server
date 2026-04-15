@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import { AuthRequest } from '../middleware/auth';
 import mongoose from 'mongoose';
 import Product from '../models/Product';
 import { ProductType } from '../models/Product';
@@ -136,5 +137,41 @@ export const deleteProduct = async (req: Request, res: Response) => {
     res.json({ message: 'Product deleted', id: req.params.id });
   } catch {
     res.status(500).json({ message: 'Server error deleting product' });
+  }
+};
+// ---------------------------------------------------------------------------
+// @desc    Get related products (same collection or type)
+// @route   GET /api/products/:id/related
+// @access  Public
+// ---------------------------------------------------------------------------
+export const getRelatedProducts = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    
+    const currentProduct = await Product.findById(id);
+    if (!currentProduct) {
+      return res.status(404).json({ message: 'Product not found' });
+    }
+
+    const filter: Record<string, any> = {
+      _id: { $ne: new mongoose.Types.ObjectId(id as string) }
+    };
+
+    // Priority 1: Same Collection
+    // Priority 2: Same Type
+    if (currentProduct.collectionId) {
+      filter.collectionId = currentProduct.collectionId;
+    } else {
+      filter.type = currentProduct.type;
+    }
+
+    const relatedProducts = await Product.find(filter)
+      .limit(4)
+      .populate('artistId', 'name imageUrl avatar')
+      .populate('collectionId', 'name releaseDate');
+
+    res.json(relatedProducts);
+  } catch (err: any) {
+    res.status(500).json({ message: 'Server error fetching related products' });
   }
 };
