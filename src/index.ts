@@ -3,6 +3,8 @@ import dotenv from "dotenv";
 import cors from "cors";
 import helmet from "helmet";
 import connectDB from "./config/db";
+import path from "path";
+import fs from "fs";
 
 // Route imports
 import authRoutes       from "./routes/authRoutes";
@@ -13,6 +15,7 @@ import artistRoutes     from "./routes/artistRoutes";
 import collectionRoutes from "./routes/collectionRoutes";
 import cmsRoutes        from "./routes/cmsRoutes";
 import newsletterRoutes from "./routes/newsletterRoutes";
+import uploadRoutes     from "./routes/uploadRoutes";
 
 dotenv.config();
 
@@ -33,6 +36,13 @@ app.use(
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Serve uploads statically
+const uploadsDir = path.join(__dirname, "../uploads");
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+}
+app.use("/uploads", express.static(uploadsDir));
+
 // ── Routes ───────────────────────────────────────────────────────────────────
 app.use("/api/auth",        authRoutes);
 app.use("/api/products",    productRoutes);
@@ -42,6 +52,7 @@ app.use("/api/artists",     artistRoutes);
 app.use("/api/collections", collectionRoutes);
 app.use("/api/cms",         cmsRoutes);
 app.use("/api/newsletter",  newsletterRoutes);
+app.use("/api/upload",      uploadRoutes);
 
 // ── Health / Root ─────────────────────────────────────────────────────────────
 app.get("/health", (_req: Request, res: Response) => {
