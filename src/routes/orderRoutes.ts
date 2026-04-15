@@ -1,13 +1,22 @@
 import express from 'express';
-import { createOrder, getMyOrders } from '../controllers/orderController';
-import { protect } from '../middleware/auth';
+import {
+  createOrder,
+  getMyOrders,
+  getAllOrders,
+  updateOrderStatus,
+  getAdminDashboardStats,
+} from '../controllers/orderController';
+import { protect, authorize } from '../middleware/auth';
 
 const router = express.Router();
 
-// POST /api/orders — protected, any logged-in user
-router.post('/', protect, createOrder);
+// ── Customer routes ──────────────────────────────────────────────────────────
+router.post('/',    protect, createOrder);
+router.get('/my',   protect, getMyOrders);
 
-// GET /api/orders/my — get current user's order history
-router.get('/my', protect, getMyOrders);
+// ── Admin routes ─────────────────────────────────────────────────────────────
+router.get('/admin/stats', protect, authorize('admin'), getAdminDashboardStats);
+router.get('/admin/all',   protect, authorize('admin'), getAllOrders);
+router.put('/:id/status',  protect, authorize('admin'), updateOrderStatus);
 
 export default router;
