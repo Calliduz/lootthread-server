@@ -261,3 +261,46 @@ export const updatePassword = async (req: any, res: Response) => {
     res.status(500).json({ message: 'Server error updating password' });
   }
 };
+
+// ---------------------------------------------------------------------------
+// @desc    Get current user profile
+// @route   GET /api/auth/profile
+// @access  Private
+// ---------------------------------------------------------------------------
+export const getProfile = async (req: AuthRequest, res: Response): Promise<any> => {
+  try {
+    const user = await User.findById(req.user?.id);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found.' });
+    }
+    res.json(user);
+  } catch (error: any) {
+    res.status(500).json({ message: error.message || 'Server error fetching profile.' });
+  }
+};
+
+// ---------------------------------------------------------------------------
+// @desc    Update user delivery addresses
+// @route   PUT /api/auth/profile/addresses
+// @access  Private
+// ---------------------------------------------------------------------------
+export const updateAddresses = async (req: AuthRequest, res: Response): Promise<any> => {
+  try {
+    const { addresses } = req.body;
+    if (!Array.isArray(addresses)) {
+      return res.status(400).json({ message: 'Addresses must be an array.' });
+    }
+
+    const user = await User.findById(req.user?.id);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found.' });
+    }
+
+    user.deliveryAddresses = addresses as any;
+    await user.save();
+
+    res.json(user);
+  } catch (error: any) {
+    res.status(500).json({ message: error.message || 'Server error updating addresses.' });
+  }
+};

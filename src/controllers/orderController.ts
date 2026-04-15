@@ -3,6 +3,11 @@ import Order from '../models/Order';
 import Product from '../models/Product';
 import User from '../models/User';
 import { AuthRequest } from '../middleware/auth';
+import Stripe from 'stripe';
+
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || 'sk_test_mock', {
+  apiVersion: '2023-10-16' as any,
+});
 
 // ---------------------------------------------------------------------------
 // @desc    Create a new order (authenticated)
@@ -11,7 +16,7 @@ import { AuthRequest } from '../middleware/auth';
 // ---------------------------------------------------------------------------
 export const createOrder = async (req: AuthRequest, res: Response): Promise<any> => {
   try {
-    const { items, totalAmount, gameTag, paymentMethod } = req.body;
+    const { items, totalAmount, gameTag, deliveryAddress, paymentMethod } = req.body;
 
     if (!items || !Array.isArray(items) || items.length === 0) {
       return res.status(400).json({ message: 'Order must contain at least one item.' });
@@ -25,6 +30,7 @@ export const createOrder = async (req: AuthRequest, res: Response): Promise<any>
       items,
       totalAmount,
       gameTag: gameTag || '',
+      deliveryAddress: deliveryAddress || '',
       paymentMethod: paymentMethod || 'simulated',
       status: 'pending',
     });
@@ -37,6 +43,53 @@ export const createOrder = async (req: AuthRequest, res: Response): Promise<any>
     });
   } catch (error: any) {
     res.status(500).json({ message: error.message || 'Server error creating order.' });
+  }
+};
+
+
+
+// ---------------------------------------------------------------------------
+// @desc    Create Stripe Payment Intent
+// @route   POST /api/orders/create-payment-intent
+// @access  Private
+// ---------------------------------------------------------------------------
+export const createPaymentIntent = async (req: AuthRequest, res: Response): Promise<any> => {
+  try {
+    const { items } = req.body;
+
+    if (!items || !Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({ message: 'Order must contain at least one item.' });
+    }
+
+    // 1. Get real prices from DB
+    const itemIds = items.map((i: any) => i.productId);
+    const dbProducts = await Product.find({ _id: { $in: itemIds } });
+
+    // 2. Calculate total in cents
+    let totalCents = 0;
+    for (const item of items) {
+      const dbProduct = dbProducts.find((p: any) => p._id.toString() === item.productId);
+      if (dbProduct) {
+        totalCents += Math.round(dbProduct.price * 100) * item.quantity;
+      }
+    }
+
+    if (totalCents <= 0) {
+      return res.status(400).json({ message: 'Invalid total amount for payment.' });
+    }
+
+    // 3. Create Stripe PaymentIntent
+    const paymentIntent = await stripe.paymentIntents.create({
+      amount: totalCents,
+      currency: 'usd',
+      automatic_payment_methods: {
+        enabled: true,
+      },
+    });
+
+    res.json({ clientSecret: paymentIntent.client_secret });
+  } catch (error: any) {
+    res.status(500).json({ message: error.message || 'Server error creating payment intent.' });
   }
 };
 

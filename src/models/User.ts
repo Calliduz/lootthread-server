@@ -20,6 +20,15 @@ export interface IUser {
   // --- Profile ---
   avatarUrl?: string;
   isActive: boolean;
+  deliveryAddresses?: {
+    _id?: any;
+    label: string;
+    street: string;
+    city: string;
+    zip: string;
+    country: string;
+    isDefault: boolean;
+  }[];
 }
 
 export interface UserDocument extends IUser, Document {
@@ -55,6 +64,16 @@ const userSchema = new Schema<UserDocument>(
     // --- Profile ---
     avatarUrl: { type: String },
     isActive:  { type: Boolean, default: true },
+    deliveryAddresses: [
+      {
+        label: { type: String, required: true },
+        street: { type: String, required: true },
+        city: { type: String, required: true },
+        zip: { type: String, required: true },
+        country: { type: String, required: true },
+        isDefault: { type: Boolean, default: false },
+      }
+    ],
   },
   {
     timestamps: true,

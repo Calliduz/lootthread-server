@@ -13,6 +13,7 @@ export interface IOrder extends Document {
   items: IOrderItem[];
   totalAmount: number;
   gameTag?: string;
+  deliveryAddress?: string;
   paymentMethod: string;
   status: 'pending' | 'processing' | 'completed' | 'cancelled';
 }
@@ -29,7 +30,8 @@ const orderSchema = new Schema<IOrder>({
   userId:        { type: Schema.Types.ObjectId, ref: 'User' },
   items:         { type: [orderItemSchema], required: true },
   totalAmount:   { type: Number, required: true },
-  gameTag:       { type: String },
+  gameTag:         { type: String },
+  deliveryAddress: { type: String },
   paymentMethod: { type: String, required: true, default: 'simulated' },
   status: {
     type: String,

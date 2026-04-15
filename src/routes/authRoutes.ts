@@ -5,6 +5,8 @@ import {
   forgotPassword,
   resetPassword,
   updatePassword,
+  getProfile,
+  updateAddresses,
 } from '../controllers/authController';
 import {
   googleOAuth,
@@ -23,6 +25,8 @@ router.post('/forgot-password', forgotPassword);
 router.post('/reset-password',  resetPassword);
 
 // ── Protected Auth (requires JWT) ─────────────────────────────────────────
+router.get('/profile', protect, getProfile);
+router.put('/profile/addresses', protect, updateAddresses);
 router.put('/update-password', protect, updatePassword);
 
 // ── Google OAuth ───────────────────────────────────────────────────────────

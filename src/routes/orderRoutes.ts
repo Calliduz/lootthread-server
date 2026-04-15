@@ -5,6 +5,7 @@ import {
   getAllOrders,
   updateOrderStatus,
   getAdminDashboardStats,
+  createPaymentIntent,
 } from '../controllers/orderController';
 import { protect, authorize } from '../middleware/auth';
 
@@ -12,6 +13,7 @@ const router = express.Router();
 
 // ── Customer routes ──────────────────────────────────────────────────────────
 router.post('/',    protect, createOrder);
+router.post('/create-payment-intent', protect, createPaymentIntent);
 router.get('/my',   protect, getMyOrders);
 
 // ── Admin routes ─────────────────────────────────────────────────────────────
