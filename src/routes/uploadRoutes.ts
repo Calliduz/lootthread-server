@@ -52,8 +52,8 @@ router.post('/', protect, authorize('admin'), upload.single('image'), (req: any,
     return res.status(400).json({ message: 'No file uploaded.' });
   }
 
-  // Return the public URL path
-  // Note: Serving handled in index.ts via express.static
+  // Return the path relative to the /api base URL
+  // The frontend baseURL is /api, so this becomes /api/uploads/filename
   res.status(200).json({
     message: 'File uploaded successfully.',
     url: `/uploads/${req.file.filename}`
