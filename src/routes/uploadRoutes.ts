@@ -1,4 +1,4 @@
-import express, { Response } from 'express';
+import express, { Request, Response } from 'express';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
@@ -10,7 +10,7 @@ const router = express.Router();
 // CONFIGURE MULTER STORAGE
 // ---------------------------------------------------------------------------
 const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
+  destination: (req: Request, file: Express.Multer.File, cb: (error: Error | null, destination: string) => void) => {
     const uploadPath = './uploads';
     // Ensure directory exists
     if (!fs.existsSync(uploadPath)) {
@@ -18,7 +18,7 @@ const storage = multer.diskStorage({
     }
     cb(null, uploadPath);
   },
-  filename: (req, file, cb) => {
+  filename: (req: Request, file: Express.Multer.File, cb: (error: Error | null, filename: string) => void) => {
     // Sanitize filename: remove spaces and add timestamp
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
     const ext = path.extname(file.originalname);
@@ -30,7 +30,7 @@ const storage = multer.diskStorage({
 const upload = multer({
   storage,
   limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
-  fileFilter: (req, file, cb) => {
+  fileFilter: (req: Request, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
     const allowedTypes = /jpeg|jpg|png|webp|gif/;
     const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
     const mimetype = allowedTypes.test(file.mimetype);
