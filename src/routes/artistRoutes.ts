@@ -1,16 +1,32 @@
 import express from 'express';
-import { 
-  getArtists, 
-  loginArtist, 
-  getArtistStats, 
-  getArtistAnalytics 
+import {
+  getArtists,
+  getArtistById,
+  createArtist,
+  updateArtist,
+  deleteArtist,
+  getArtistStats,
+  getArtistAnalytics,
+  loginArtist,
 } from '../controllers/artistController';
+import { protect, authorize } from '../middleware/auth';
 
 const router = express.Router();
 
-router.get('/', getArtists);
+// Public
+router.get('/',    getArtists);
+router.get('/:id', getArtistById);
+
+// Admin CRUD
+router.post('/',    protect, authorize('admin'), createArtist);
+router.put('/:id',  protect, authorize('admin'), updateArtist);
+router.delete('/:id', protect, authorize('admin'), deleteArtist);
+
+// Dashboard (admin-only)
+router.get('/:id/stats',     protect, authorize('admin'), getArtistStats);
+router.get('/:id/analytics', protect, authorize('admin'), getArtistAnalytics);
+
+// Deprecated — returns 410 Gone
 router.post('/login', loginArtist);
-router.get('/:id/stats', getArtistStats);
-router.get('/:id/analytics', getArtistAnalytics);
 
 export default router;

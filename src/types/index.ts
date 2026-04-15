@@ -1,32 +1,25 @@
 /**
  * LOOT THREAD SHARED TYPES
- * Mirrored from frontend to maintain API contract consistency.
+ * Single source of truth for API contract types shared across the backend.
+ *
+ * NOTE: Model-specific interfaces now live in their own model files and
+ * re-export from there; keeping core auth/payload types here.
  */
 
-export interface Product {
+// Re-export from models so consumers have one import path
+export type { IArtist, ArtistDocument }        from '../models/Artist';
+export type { IProduct, ProductDocument, ProductType } from '../models/Product';
+export type { ICollection, CollectionDocument } from '../models/Collection';
+export type { ICMSContent, CMSContentDocument, CMSContentType } from '../models/CMSContent';
+export type { IUser, UserDocument, UserRole }   from '../models/User';
+
+// ---------------------------------------------------------------------------
+// Order types (owned here since Order model has no separate interface file)
+// ---------------------------------------------------------------------------
+export interface OrderItem {
+  productId: string;
   name: string;
-  description: string;
   price: number;
-  category: 'skin' | 'attachment';
-  subCategory: string;
-  images: string[];
-  inventory: number;
-  tags: string[];
-  artistId?: string;
-  createdAt: Date | string;
-}
-
-export interface Artist {
-  name: string;
-  bio: string;
-  avatar: string;
-  salesCount: string | number;
-  rating: number;
-  totalRevenue?: number;
-  activeSkinsCount?: number;
-}
-
-export interface OrderItem extends Product {
   quantity: number;
 }
 
@@ -34,13 +27,13 @@ export interface CreateOrderRequest {
   items: OrderItem[];
   totalAmount: number;
   paymentMethod: string;
+  customerEmail?: string; // optional — for guest checkout
 }
 
-/**
- * AUTH & USER
- */
-
+// ---------------------------------------------------------------------------
+// JWT Payload
+// ---------------------------------------------------------------------------
 export interface UserPayload {
   id: string;
-  role: 'artist' | 'admin' | 'user';
+  role: 'admin' | 'customer';
 }
