@@ -85,3 +85,74 @@ export const loginUser = async (req: Request, res: Response) => {
     res.status(500).json({ message: 'Server error during login' });
   }
 };
+
+// ---------------------------------------------------------------------------
+// @desc    Forgot Password (generate OTP)
+// @route   POST /api/auth/forgot-password
+// @access  Public
+// ---------------------------------------------------------------------------
+export const forgotPassword = async (req: Request, res: Response) => {
+  const { email } = req.body;
+  if (!email) {
+    return res.status(400).json({ message: 'Email is required' });
+  }
+
+  try {
+    const user = await User.findOne({ email });
+    if (!user) {
+      // Return 200 to prevent email enumeration
+      return res.status(200).json({ message: 'If an account with that email exists, an OTP was sent.' });
+    }
+
+    // Generate 6 digit OTP
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    
+    // Set OTP and expiry (15 mins)
+    user.resetPasswordOtp = otp;
+    user.resetPasswordExpires = new Date(Date.now() + 15 * 60 * 1000);
+    await user.save();
+
+    // STUB: Email delivery
+    console.log(`\n\n=== EMAIL DELIVERY STUB ===\nTo: ${email}\nOTP: ${otp}\n===========================\n\n`);
+
+    res.status(200).json({ message: 'If an account with that email exists, an OTP was sent.' });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error processing request' });
+  }
+};
+
+// ---------------------------------------------------------------------------
+// @desc    Reset Password (verify OTP)
+// @route   POST /api/auth/reset-password
+// @access  Public
+// ---------------------------------------------------------------------------
+export const resetPassword = async (req: Request, res: Response) => {
+  const { email, otp, newPassword } = req.body;
+
+  if (!email || !otp || !newPassword) {
+    return res.status(400).json({ message: 'Email, OTP, and new password are required' });
+  }
+
+  try {
+    const user = await User.findOne({ 
+      email, 
+      resetPasswordOtp: otp,
+      resetPasswordExpires: { $gt: Date.now() } // ensure it hasn't expired
+    }).select('+resetPasswordOtp +resetPasswordExpires');
+
+    if (!user) {
+      return res.status(400).json({ message: 'Invalid or expired OTP' });
+    }
+
+    // Update password, clear OTP
+    user.password = newPassword;
+    user.resetPasswordOtp = undefined;
+    user.resetPasswordExpires = undefined;
+    
+    await user.save();
+
+    res.status(200).json({ message: 'Password has been reset successfully. You can now login.' });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error processing request' });
+  }
+};
