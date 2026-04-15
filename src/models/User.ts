@@ -11,7 +11,7 @@ export interface IUser {
   password?: string;        // hashed; undefined for pure OAuth users
   // --- Auth: OAuth ---
   googleId?: string;
-  githubId?: string;
+  facebookId?: string;
   // --- Auth: OTP / Password Reset ---
   resetPasswordOtp?: string;
   resetPasswordExpires?: Date;
@@ -37,8 +37,8 @@ const userSchema = new Schema<UserDocument>(
     password: { type: String, select: false },
 
     // --- Auth: OAuth ---
-    googleId: { type: String, sparse: true }, // sparse index allows multiple nulls
-    githubId: { type: String, sparse: true },
+    googleId:   { type: String, sparse: true },
+    facebookId: { type: String, sparse: true },
 
     // --- Auth: OTP ---
     resetPasswordOtp:     { type: String, select: false },

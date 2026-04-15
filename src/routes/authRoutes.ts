@@ -9,8 +9,8 @@ import {
 import {
   googleOAuth,
   googleCallback,
-  githubOAuth,
-  githubCallback,
+  facebookOAuth,
+  facebookCallback,
 } from '../controllers/oauthController';
 import { protect } from '../middleware/auth';
 
@@ -29,8 +29,8 @@ router.put('/update-password', protect, updatePassword);
 router.get('/google',          googleOAuth);
 router.get('/google/callback', googleCallback);
 
-// ── GitHub OAuth ───────────────────────────────────────────────────────────
-router.get('/github',          githubOAuth);
-router.get('/github/callback', githubCallback);
+// ── Facebook OAuth ─────────────────────────────────────────────────────────
+router.get('/facebook',          facebookOAuth);
+router.get('/facebook/callback', facebookCallback);
 
 export default router;
