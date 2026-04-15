@@ -16,7 +16,7 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || 'sk_test_mock', {
 // ---------------------------------------------------------------------------
 export const createOrder = async (req: AuthRequest, res: Response): Promise<any> => {
   try {
-    const { items, totalAmount, gameTag, deliveryAddress, paymentMethod } = req.body;
+    const { items, totalAmount, deliveryAddress, paymentMethod } = req.body;
 
     if (!items || !Array.isArray(items) || items.length === 0) {
       return res.status(400).json({ message: 'Order must contain at least one item.' });
@@ -29,11 +29,25 @@ export const createOrder = async (req: AuthRequest, res: Response): Promise<any>
       userId: req.user?.id,
       items,
       totalAmount,
-      gameTag: gameTag || '',
       deliveryAddress: deliveryAddress || '',
       paymentMethod: paymentMethod || 'simulated',
       status: 'pending',
     });
+
+    // --- DYNAMIC STOCK DEDUCTION ---
+    try {
+      const stockUpdates = items.map((item: any) => ({
+        updateOne: {
+          filter: { _id: item.productId },
+          update: { $inc: { stockQuantity: -item.quantity } }
+        }
+      }));
+
+      await Product.bulkWrite(stockUpdates);
+    } catch (stockError) {
+      console.error('Stock deduction failed:', stockError);
+      // We don't block the order if stock deduction fails, but we log it
+    }
 
     res.status(201).json({
       orderId: order._id,
@@ -161,7 +175,7 @@ export const updateOrderStatus = async (req: AuthRequest, res: Response): Promis
 // ---------------------------------------------------------------------------
 export const getAdminDashboardStats = async (_req: AuthRequest, res: Response): Promise<any> => {
   try {
-    const [revenueAgg, pendingOrdersCount, totalProducts, totalUsers] = await Promise.all([
+    const [revenueAgg, pendingOrdersCount, totalProducts, totalUsers, recentOrders] = await Promise.all([
       // Sum revenue from completed + processing orders
       Order.aggregate([
         { $match: { status: { $in: ['completed', 'processing'] } } },
@@ -170,6 +184,10 @@ export const getAdminDashboardStats = async (_req: AuthRequest, res: Response): 
       Order.countDocuments({ status: 'pending' }),
       Product.countDocuments({}),
       User.countDocuments({ role: 'customer' }),
+      Order.find({})
+        .sort({ createdAt: -1 })
+        .limit(5)
+        .populate('userId', 'name email'),
     ]);
 
     const totalRevenue = revenueAgg[0]?.total ?? 0;
@@ -179,6 +197,7 @@ export const getAdminDashboardStats = async (_req: AuthRequest, res: Response): 
       pendingOrdersCount,
       totalProducts,
       totalUsers,
+      recentOrders: recentOrders || [],
     });
   } catch (error: any) {
     res.status(500).json({ message: error.message || 'Server error fetching stats.' });
