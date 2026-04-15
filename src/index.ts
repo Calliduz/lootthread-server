@@ -12,6 +12,7 @@ import quizRoutes       from "./routes/quizRoutes";
 import artistRoutes     from "./routes/artistRoutes";
 import collectionRoutes from "./routes/collectionRoutes";
 import cmsRoutes        from "./routes/cmsRoutes";
+import newsletterRoutes from "./routes/newsletterRoutes";
 
 dotenv.config();
 
@@ -40,6 +41,7 @@ app.use("/api/quiz",        quizRoutes);
 app.use("/api/artists",     artistRoutes);
 app.use("/api/collections", collectionRoutes);
 app.use("/api/cms",         cmsRoutes);
+app.use("/api/newsletter",  newsletterRoutes);
 
 // ── Health / Root ─────────────────────────────────────────────────────────────
 app.get("/health", (_req: Request, res: Response) => {
