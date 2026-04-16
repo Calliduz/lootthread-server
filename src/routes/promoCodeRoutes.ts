@@ -1,6 +1,7 @@
 import express from 'express';
 import {
   validatePromoCode,
+  getEligiblePromoCodes,
   getAllPromoCodes,
   createPromoCode,
   updatePromoCode,
@@ -12,6 +13,7 @@ const router = express.Router();
 
 // ── Customer routes ──────────────────────────────────────────────────────────
 router.post('/validate', protect, validatePromoCode);
+router.get('/eligible', protect, getEligiblePromoCodes);
 
 // ── Admin routes ─────────────────────────────────────────────────────────────
 router.get('/',    protect, authorize('admin'), getAllPromoCodes);

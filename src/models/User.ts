@@ -15,6 +15,10 @@ export interface IUser {
   // --- Auth: OTP / Password Reset ---
   resetPasswordOtp?: string;
   resetPasswordExpires?: Date;
+  // --- Auth: Email Verification ---
+  isVerified: boolean;
+  verificationOtp?: string;
+  verificationExpires?: Date;
   // --- Loyalty / Gamification ---
   xp: number;
   level: number;
@@ -55,6 +59,11 @@ const userSchema = new Schema<UserDocument>(
     // --- Auth: OTP ---
     resetPasswordOtp:     { type: String, select: false },
     resetPasswordExpires: { type: Date,   select: false },
+
+    // --- Auth: Email Verification ---
+    isVerified:          { type: Boolean, default: false },
+    verificationOtp:     { type: String,  select: false },
+    verificationExpires: { type: Date,    select: false },
 
     // --- Loyalty / Gamification ---
     xp:    { type: Number, default: 0, min: 0 },

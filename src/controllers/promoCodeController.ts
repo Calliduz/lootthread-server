@@ -44,6 +44,36 @@ export const validatePromoCode = async (req: AuthRequest, res: Response): Promis
 };
 
 // ---------------------------------------------------------------------------
+// @desc    Get all eligible promo codes for the current user (Customer)
+// @route   GET /api/promo/eligible
+// @access  Private
+// ---------------------------------------------------------------------------
+export const getEligiblePromoCodes = async (req: AuthRequest, res: Response): Promise<any> => {
+  try {
+    const user = await User.findById(req.user?.id);
+    const userLevel = user?.level ?? 1;
+
+    // Fetch all active promos
+    const allPromos = await PromoCode.find({ isActive: true });
+
+    // Filter by validity (usage, expiry, minLevel)
+    const eligiblePromos = allPromos
+      .filter(promo => isCodeValid(promo, userLevel).valid)
+      .sort((a, b) => b.discountPercent - a.discountPercent);
+
+    return res.json(
+      eligiblePromos.map(p => ({
+        code: p.code,
+        discountPercent: p.discountPercent,
+        description: p.description,
+      }))
+    );
+  } catch (error: any) {
+    return res.status(500).json({ message: 'Server error fetching eligible promo codes.' });
+  }
+};
+
+// ---------------------------------------------------------------------------
 // @desc    Get all promo codes (Admin)
 // @route   GET /api/promo
 // @access  Admin

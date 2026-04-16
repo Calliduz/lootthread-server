@@ -21,26 +21,70 @@ export const registerUser = async (req: Request, res: Response) => {
   const { name, email, password } = req.body;
 
   if (!name || !email || !password) {
-    return res.status(400).json({ message: 'name, email and password are required' });
+    return res.status(400).json({ message: 'Name, email and passcode are required.' });
+  }
+
+  // --- Regex Validation ---
+  const nameRegex = /^[a-zA-Z\s]{2,50}$/;
+  if (!nameRegex.test(name)) {
+    return res.status(400).json({ message: 'Name must be 2-50 characters and contain only letters.' });
+  }
+
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email)) {
+    return res.status(400).json({ message: 'Invalid email format.' });
+  }
+
+  if (password.length < 8) {
+    return res.status(400).json({ message: 'Passcode must be at least 8 characters.' });
   }
 
   try {
     const exists = await User.findOne({ email });
     if (exists) {
-      return res.status(409).json({ message: 'An account with that email already exists' });
+      return res.status(409).json({ message: 'Identity already exists in the collective.' });
     }
 
-    const user = await User.create({ name, email, password, role: 'customer' });
-    const token = signToken((user._id as any).toString(), user.role);
+    // Generate 6-digit verification OTP
+    const verificationOtp = Math.floor(100000 + Math.random() * 900000).toString();
+    const verificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+
+    const user = await User.create({ 
+      name, 
+      email, 
+      password, 
+      role: 'customer',
+      isVerified: false,
+      verificationOtp,
+      verificationExpires
+    });
+
+    // --- SendGrid Dispatch (Verification) ---
+    try {
+      sgMail.setApiKey(process.env.SENDGRID_API_KEY as string);
+      const msg = {
+        to: email,
+        from: process.env.SENDGRID_FROM_EMAIL as string,
+        subject: 'Verify Your LootThread Identity',
+        html: `
+          <div style="background-color:#0a0a12; color:#fff; padding:40px; font-family:sans-serif;">
+            <h1 style="color:#00ffcc; font-style:italic;">IDENTITY VERIFICATION</h1>
+            <p>Welcome to LootThread, <strong>${name}</strong>. Use the terminal code below to verify your account.</p>
+            <div style="background:#111120; padding:20px; text-align:center; font-size:32px; letter-spacing:10px; color:#00ffcc; border:1px solid #00ffcc;">
+              ${verificationOtp}
+            </div>
+            <p style="color:#666; font-size:12px; margin-top:20px;">This code expires in 24 hours.</p>
+          </div>
+        `
+      };
+      await sgMail.send(msg);
+    } catch (err) {
+      console.error('[Verification Email Error]', err);
+    }
 
     res.status(201).json({
-      user: {
-        id:    (user._id as any).toString(),
-        name:  user.name,
-        email: user.email,
-        role:  user.role,
-      },
-      token,
+      message: 'Registration successful. Verification code transmitted.',
+      email: user.email
     });
   } catch (error) {
     res.status(500).json({ message: 'Server error during registration' });
@@ -68,6 +112,14 @@ export const loginUser = async (req: Request, res: Response) => {
 
     if (!user.isActive) {
       return res.status(403).json({ message: 'Account is deactivated. Contact support.' });
+    }
+
+    if (!user.isVerified) {
+      return res.status(403).json({ 
+        message: 'Identity not verified. Please check your email.', 
+        needsVerification: true,
+        email: user.email 
+      });
     }
 
     const token = signToken((user._id as any).toString(), user.role);
@@ -303,5 +355,49 @@ export const updateAddresses = async (req: AuthRequest, res: Response): Promise<
     res.json(user);
   } catch (error: any) {
     res.status(500).json({ message: error.message || 'Server error updating addresses.' });
+  }
+};
+// ---------------------------------------------------------------------------
+// @desc    Verify Email OTP
+// @route   POST /api/auth/verify-email
+// @access  Public
+// ---------------------------------------------------------------------------
+export const verifyEmail = async (req: Request, res: Response) => {
+  const { email, otp } = req.body;
+
+  if (!email || !otp) {
+    return res.status(400).json({ message: 'Email and verification code are required.' });
+  }
+
+  try {
+    const user = await User.findOne({ 
+      email, 
+      verificationOtp: otp,
+      verificationExpires: { $gt: new Date() }
+    }).select('+verificationOtp +verificationExpires');
+
+    if (!user) {
+      return res.status(400).json({ message: 'Invalid or expired verification code.' });
+    }
+
+    user.isVerified = true;
+    user.verificationOtp = undefined;
+    user.verificationExpires = undefined;
+    await user.save();
+
+    const token = signToken((user._id as any).toString(), user.role);
+
+    res.status(200).json({
+      message: 'Identity verified successfully.',
+      user: {
+        id:    (user._id as any).toString(),
+        name:  user.name,
+        email: user.email,
+        role:  user.role,
+      },
+      token,
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error during verification.' });
   }
 };
