@@ -2,12 +2,20 @@ import { Response } from 'express';
 import Order from '../models/Order';
 import Product from '../models/Product';
 import User from '../models/User';
+import PromoCode from '../models/PromoCode';
 import { AuthRequest } from '../middleware/auth';
+import { isCodeValid } from './promoCodeController';
 import Stripe from 'stripe';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || 'sk_test_mock', {
   apiVersion: '2023-10-16' as any,
 });
+
+// ---------------------------------------------------------------------------
+// Shared leveling formula
+// 1 XP per ₱1 spent. Level up every 5,000 XP (₱5,000 spent).
+// ---------------------------------------------------------------------------
+export const calculateLevel = (xp: number): number => Math.floor(xp / 5000) + 1;
 
 // ---------------------------------------------------------------------------
 // @desc    Create a new order (authenticated)
@@ -16,7 +24,7 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || 'sk_test_mock', {
 // ---------------------------------------------------------------------------
 export const createOrder = async (req: AuthRequest, res: Response): Promise<any> => {
   try {
-    const { items, totalAmount, deliveryAddress, paymentMethod } = req.body;
+    const { items, totalAmount, deliveryAddress, paymentMethod, promoCode } = req.body;
 
     if (!items || !Array.isArray(items) || items.length === 0) {
       return res.status(400).json({ message: 'Order must contain at least one item.' });
@@ -34,7 +42,7 @@ export const createOrder = async (req: AuthRequest, res: Response): Promise<any>
       status: 'pending',
     });
 
-    // --- DYNAMIC STOCK DEDUCTION ---
+    // --- STOCK DEDUCTION ---
     try {
       const stockUpdates = items.map((item: any) => ({
         updateOne: {
@@ -42,11 +50,35 @@ export const createOrder = async (req: AuthRequest, res: Response): Promise<any>
           update: { $inc: { stockQuantity: -item.quantity } }
         }
       }));
-
       await Product.bulkWrite(stockUpdates);
     } catch (stockError) {
       console.error('Stock deduction failed:', stockError);
-      // We don't block the order if stock deduction fails, but we log it
+    }
+
+    // --- XP GRANT (1 XP per ₱1 spent) ---
+    try {
+      const user = await User.findById(req.user?.id);
+      if (user) {
+        const earnedXp = Math.floor(totalAmount);
+        user.xp = (user.xp || 0) + earnedXp;
+        user.level = calculateLevel(user.xp);
+        await user.save();
+        console.log(`[XP] User ${user._id} earned ${earnedXp} XP. Total: ${user.xp} XP, Level: ${user.level}`);
+      }
+    } catch (xpError) {
+      console.error('XP grant failed:', xpError);
+    }
+
+    // --- INCREMENT PROMO USAGE ---
+    if (promoCode) {
+      try {
+        await PromoCode.findOneAndUpdate(
+          { code: (promoCode as string).toUpperCase().trim() },
+          { $inc: { usedCount: 1 } }
+        );
+      } catch (promoError) {
+        console.error('Promo usage increment failed:', promoError);
+      }
     }
 
     res.status(201).json({
@@ -60,16 +92,14 @@ export const createOrder = async (req: AuthRequest, res: Response): Promise<any>
   }
 };
 
-
-
 // ---------------------------------------------------------------------------
-// @desc    Create Stripe Payment Intent
+// @desc    Create Stripe Payment Intent (PHP currency + promo discount)
 // @route   POST /api/orders/create-payment-intent
 // @access  Private
 // ---------------------------------------------------------------------------
 export const createPaymentIntent = async (req: AuthRequest, res: Response): Promise<any> => {
   try {
-    const { items } = req.body;
+    const { items, promoCode } = req.body;
 
     if (!items || !Array.isArray(items) || items.length === 0) {
       return res.status(400).json({ message: 'Order must contain at least one item.' });
@@ -79,29 +109,60 @@ export const createPaymentIntent = async (req: AuthRequest, res: Response): Prom
     const itemIds = items.map((i: any) => i.productId);
     const dbProducts = await Product.find({ _id: { $in: itemIds } });
 
-    // 2. Calculate total in cents
-    let totalCents = 0;
+    // 2. Calculate subtotal in centavos (PHP uses centavos as smallest unit)
+    let subtotalCentavos = 0;
     for (const item of items) {
       const dbProduct = dbProducts.find((p: any) => p._id.toString() === item.productId);
       if (dbProduct) {
-        totalCents += Math.round(dbProduct.price * 100) * item.quantity;
+        subtotalCentavos += Math.round(dbProduct.price * 100) * item.quantity;
       }
     }
 
-    if (totalCents <= 0) {
+    if (subtotalCentavos <= 0) {
       return res.status(400).json({ message: 'Invalid total amount for payment.' });
     }
 
-    // 3. Create Stripe PaymentIntent
+    // 3. Apply promo code discount (server-side validation)
+    let discountPercent = 0;
+    let discountAmountCentavos = 0;
+    let appliedPromoCode: string | null = null;
+
+    if (promoCode) {
+      const promo = await PromoCode.findOne({ code: (promoCode as string).toUpperCase().trim() });
+      if (promo) {
+        const user = await User.findById(req.user?.id);
+        const userLevel = user?.level ?? 1;
+        const { valid } = isCodeValid(promo, userLevel);
+        if (valid) {
+          discountPercent = promo.discountPercent;
+          discountAmountCentavos = Math.round(subtotalCentavos * discountPercent / 100);
+          appliedPromoCode = promo.code;
+        }
+      }
+    }
+
+    const totalCentavos = subtotalCentavos - discountAmountCentavos;
+    const finalCentavos = Math.max(totalCentavos, 2000); // Stripe PHP minimum: ₱20.00
+
+    // 4. Create Stripe PaymentIntent in PHP
     const paymentIntent = await stripe.paymentIntents.create({
-      amount: totalCents,
-      currency: 'usd',
-      automatic_payment_methods: {
-        enabled: true,
+      amount: finalCentavos,
+      currency: 'php',
+      automatic_payment_methods: { enabled: true },
+      metadata: {
+        promoCode: appliedPromoCode || '',
+        discountPercent: discountPercent.toString(),
       },
     });
 
-    res.json({ clientSecret: paymentIntent.client_secret });
+    res.json({
+      clientSecret: paymentIntent.client_secret,
+      subtotal: subtotalCentavos / 100,
+      discountPercent,
+      discountAmount: discountAmountCentavos / 100,
+      total: finalCentavos / 100,
+      appliedPromoCode,
+    });
   } catch (error: any) {
     res.status(500).json({ message: error.message || 'Server error creating payment intent.' });
   }
@@ -158,10 +219,7 @@ export const updateOrderStatus = async (req: AuthRequest, res: Response): Promis
       { new: true, runValidators: true }
     );
 
-    if (!order) {
-      return res.status(404).json({ message: 'Order not found.' });
-    }
-
+    if (!order) return res.status(404).json({ message: 'Order not found.' });
     res.json({ message: 'Order status updated.', order });
   } catch (error: any) {
     res.status(500).json({ message: error.message || 'Server error updating order.' });
@@ -176,7 +234,6 @@ export const updateOrderStatus = async (req: AuthRequest, res: Response): Promis
 export const getAdminDashboardStats = async (_req: AuthRequest, res: Response): Promise<any> => {
   try {
     const [revenueAgg, pendingOrdersCount, totalProducts, totalUsers, recentOrders] = await Promise.all([
-      // Sum revenue from completed + processing orders
       Order.aggregate([
         { $match: { status: { $in: ['completed', 'processing'] } } },
         { $group: { _id: null, total: { $sum: '$totalAmount' } } },

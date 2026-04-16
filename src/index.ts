@@ -17,6 +17,7 @@ import collectionRoutes from "./routes/collectionRoutes";
 import cmsRoutes        from "./routes/cmsRoutes";
 import newsletterRoutes from "./routes/newsletterRoutes";
 import uploadRoutes     from "./routes/uploadRoutes";
+import promoCodeRoutes  from "./routes/promoCodeRoutes";
 
 dotenv.config();
 
@@ -58,6 +59,7 @@ app.use("/api/collections", collectionRoutes);
 app.use("/api/cms",         cmsRoutes);
 app.use("/api/newsletter",  newsletterRoutes);
 app.use("/api/upload",      uploadRoutes);
+app.use("/api/promo",       promoCodeRoutes);
 
 // ── Health / Root ─────────────────────────────────────────────────────────────
 app.get("/health", (_req: Request, res: Response) => {

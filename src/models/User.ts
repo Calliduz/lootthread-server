@@ -15,6 +15,9 @@ export interface IUser {
   // --- Auth: OTP / Password Reset ---
   resetPasswordOtp?: string;
   resetPasswordExpires?: Date;
+  // --- Loyalty / Gamification ---
+  xp: number;
+  level: number;
   // --- Access Control ---
   role: UserRole;
   // --- Profile ---
@@ -52,6 +55,10 @@ const userSchema = new Schema<UserDocument>(
     // --- Auth: OTP ---
     resetPasswordOtp:     { type: String, select: false },
     resetPasswordExpires: { type: Date,   select: false },
+
+    // --- Loyalty / Gamification ---
+    xp:    { type: Number, default: 0, min: 0 },
+    level: { type: Number, default: 1, min: 1 },
 
     // --- Access Control ---
     role: {
