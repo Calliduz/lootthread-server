@@ -30,6 +30,7 @@ const seedDB = async () => {
       password: 'password123',
       role: 'admin',
       isActive: true,
+      isVerified: true,
     });
 
     const customerUser = await User.create({
@@ -38,6 +39,7 @@ const seedDB = async () => {
       password: 'password123',
       role: 'customer',
       isActive: true,
+      isVerified: true,
     });
     console.log(`Created Users: Admin (${adminUser._id}), Customer (${customerUser._id})`);
 
