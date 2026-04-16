@@ -25,9 +25,9 @@ export const registerUser = async (req: Request, res: Response) => {
   }
 
   // --- Regex Validation ---
-  const nameRegex = /^[a-zA-Z\s]{2,50}$/;
+  const nameRegex = /^[a-zA-Z0-9\s]{2,50}$/;
   if (!nameRegex.test(name)) {
-    return res.status(400).json({ message: 'Name must be 2-50 characters and contain only letters.' });
+    return res.status(400).json({ message: 'Name must be 2-50 characters and contain only letters, numbers, and spaces.' });
   }
 
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
