@@ -5,6 +5,9 @@ import Artist from './models/Artist';
 import Collection from './models/Collection';
 import Product from './models/Product';
 import CMSContent from './models/CMSContent';
+import Order from './models/Order';
+import PromoCode from './models/PromoCode';
+import Newsletter from './models/Newsletter';
 
 dotenv.config();
 
@@ -21,6 +24,9 @@ const seedDB = async () => {
     await Collection.deleteMany({});
     await Product.deleteMany({});
     await CMSContent.deleteMany({});
+    await Order.deleteMany({});
+    await PromoCode.deleteMany({});
+    await Newsletter.deleteMany({});
 
     // 2. Seed Users
     console.log('Seeding Users...');
