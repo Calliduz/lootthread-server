@@ -1,5 +1,7 @@
 import express, { Request, Response } from 'express';
 import Newsletter from '../models/Newsletter';
+import { broadcastEmail } from '../controllers/newsletterController';
+import { protect, authorize } from '../middleware/auth';
 
 const router = express.Router();
 
@@ -21,5 +23,8 @@ router.post('/subscribe', async (req: Request, res: Response): Promise<any> => {
     res.status(500).json({ message: error.message || 'Server Error' });
   }
 });
+
+// Admin Routes
+router.post('/broadcast', protect, authorize('admin'), broadcastEmail);
 
 export default router;
