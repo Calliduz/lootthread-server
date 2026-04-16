@@ -1,6 +1,7 @@
 import express from 'express';
 import {
   getArtists,
+  getArtistsAdmin,
   getArtistById,
   createArtist,
   updateArtist,
@@ -18,6 +19,7 @@ router.get('/',    getArtists);
 router.get('/:id', getArtistById);
 
 // Admin CRUD
+router.get('/admin/all', protect, authorize('admin'), getArtistsAdmin);
 router.post('/',    protect, authorize('admin'), createArtist);
 router.put('/:id',  protect, authorize('admin'), updateArtist);
 router.delete('/:id', protect, authorize('admin'), deleteArtist);

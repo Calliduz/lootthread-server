@@ -16,6 +16,20 @@ export const getArtists = async (_req: Request, res: Response) => {
 };
 
 // ---------------------------------------------------------------------------
+// @desc    Get ALL artists (including inactive)
+// @route   GET /api/artists/admin/all
+// @access  Admin
+// ---------------------------------------------------------------------------
+export const getArtistsAdmin = async (_req: Request, res: Response) => {
+  try {
+    const artists = await Artist.find({}).sort({ name: 1 });
+    res.json(artists);
+  } catch {
+    res.status(500).json({ message: 'Server error fetching artists (admin)' });
+  }
+};
+
+// ---------------------------------------------------------------------------
 // @desc    Get single artist by ID
 // @route   GET /api/artists/:id
 // @access  Public

@@ -3,6 +3,7 @@ import dotenv from "dotenv";
 import cors from "cors";
 import helmet from "helmet";
 import connectDB from "./config/db";
+import { initializeCMS } from "./utils/initCMS";
 import path from "path";
 import fs from "fs";
 
@@ -23,7 +24,9 @@ const app: Express = express();
 const port = process.env.PORT || 5000;
 
 // Connect to Database
-connectDB();
+connectDB().then(() => {
+  initializeCMS();
+});
 
 // ── Middleware ───────────────────────────────────────────────────────────────
 app.use(helmet({
