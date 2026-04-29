@@ -127,10 +127,11 @@ const seedDB = async () => {
         name: 'Zero-Friction Tactical Sleeve',
         title: 'Tactical Sleeve',
         description: 'Compression sleeve for zero-friction mouse movement. Micro-weave fabric optimized for high-DPI sensors.',
-        price: 19.99,
-        type: 'individual',
-        stockQuantity: 1000,
-        imageUrl: 'https://images.unsplash.com/photo-1629429464245-4bb684570196?auto=format&fit=crop&q=80&w=800',
+        price: 34.99,
+        type: 'skin',
+        category: 'Essential',
+        stockQuantity: 15,
+        imageUrl: 'https://images.unsplash.com/photo-1591047139829-d91aecb6caea?q=80&w=800&auto=format&fit=crop',
         artistId: artist2._id,
       }
     ];

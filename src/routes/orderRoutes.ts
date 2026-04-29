@@ -4,6 +4,7 @@ import {
   getMyOrders,
   getAllOrders,
   updateOrderStatus,
+  updateBulkOrderStatus,
   getAdminDashboardStats,
   createPaymentIntent,
 } from '../controllers/orderController';
@@ -19,6 +20,7 @@ router.get('/my',   protect, getMyOrders);
 // ── Admin routes ─────────────────────────────────────────────────────────────
 router.get('/admin/stats', protect, authorize('admin'), getAdminDashboardStats);
 router.get('/admin/all',   protect, authorize('admin'), getAllOrders);
+router.put('/bulk-status', protect, authorize('admin'), updateBulkOrderStatus);
 router.put('/:id/status',  protect, authorize('admin'), updateOrderStatus);
 
 export default router;

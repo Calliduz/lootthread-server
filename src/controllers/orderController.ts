@@ -227,6 +227,35 @@ export const updateOrderStatus = async (req: AuthRequest, res: Response): Promis
 };
 
 // ---------------------------------------------------------------------------
+// @desc    Update multiple order statuses (Admin)
+// @route   PUT /api/orders/bulk-status
+// @access  Admin
+// ---------------------------------------------------------------------------
+export const updateBulkOrderStatus = async (req: AuthRequest, res: Response): Promise<any> => {
+  try {
+    const { ids, status } = req.body;
+
+    if (!ids || !Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ message: 'No order IDs provided.' });
+    }
+
+    const validStatuses = ['pending', 'processing', 'completed', 'cancelled'];
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({ message: `Invalid status. Must be one of: ${validStatuses.join(', ')}` });
+    }
+
+    const result = await Order.updateMany(
+      { _id: { $in: ids } },
+      { $set: { status } }
+    );
+
+    res.json({ message: `${result.modifiedCount} orders updated.`, modifiedCount: result.modifiedCount });
+  } catch (error: any) {
+    res.status(500).json({ message: error.message || 'Server error bulk updating orders.' });
+  }
+};
+
+// ---------------------------------------------------------------------------
 // @desc    Admin dashboard aggregated stats
 // @route   GET /api/orders/admin/stats
 // @access  Admin
