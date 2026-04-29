@@ -6,6 +6,7 @@ import PromoCode from '../models/PromoCode';
 import { AuthRequest } from '../middleware/auth';
 import { isCodeValid } from './promoCodeController';
 import Stripe from 'stripe';
+import { sendOrderConfirmation, sendOrderStatusUpdate } from '../services/mailService';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || 'sk_test_mock', {
   apiVersion: '2023-10-16' as any,
@@ -79,6 +80,16 @@ export const createOrder = async (req: AuthRequest, res: Response): Promise<any>
       } catch (promoError) {
         console.error('Promo usage increment failed:', promoError);
       }
+    }
+
+    // --- EMAIL NOTIFICATION ---
+    try {
+      const user = await User.findById(req.user?.id);
+      if (user && user.email) {
+        await sendOrderConfirmation(user.email, order);
+      }
+    } catch (mailError) {
+      console.error('Order confirmation email failed:', mailError);
     }
 
     res.status(201).json({
@@ -220,6 +231,18 @@ export const updateOrderStatus = async (req: AuthRequest, res: Response): Promis
     );
 
     if (!order) return res.status(404).json({ message: 'Order not found.' });
+
+    // --- EMAIL NOTIFICATION ---
+    try {
+      const populatedOrder = await order.populate('userId', 'email');
+      const user: any = populatedOrder.userId;
+      if (user && user.email) {
+        await sendOrderStatusUpdate(user.email, order);
+      }
+    } catch (mailError) {
+      console.error('Status update email failed:', mailError);
+    }
+
     res.json({ message: 'Order status updated.', order });
   } catch (error: any) {
     res.status(500).json({ message: error.message || 'Server error updating order.' });
@@ -249,6 +272,16 @@ export const updateBulkOrderStatus = async (req: AuthRequest, res: Response): Pr
       { $set: { status } }
     );
 
+    // --- EMAIL NOTIFICATIONS (ASYNC) ---
+    Order.find({ _id: { $in: ids } }).populate('userId', 'email').then(orders => {
+      orders.forEach(o => {
+        const user: any = o.userId;
+        if (user && user.email) {
+          sendOrderStatusUpdate(user.email, o).catch(e => console.error(`Failed to send bulk update email to ${user.email}:`, e));
+        }
+      });
+    }).catch(e => console.error('Failed to fetch orders for bulk email notifications:', e));
+
     res.json({ message: `${result.modifiedCount} orders updated.`, modifiedCount: result.modifiedCount });
   } catch (error: any) {
     res.status(500).json({ message: error.message || 'Server error bulk updating orders.' });
@@ -262,7 +295,7 @@ export const updateBulkOrderStatus = async (req: AuthRequest, res: Response): Pr
 // ---------------------------------------------------------------------------
 export const getAdminDashboardStats = async (_req: AuthRequest, res: Response): Promise<any> => {
   try {
-    const [revenueAgg, pendingOrdersCount, totalProducts, totalUsers, recentOrders] = await Promise.all([
+    const [revenueAgg, pendingOrdersCount, totalProducts, totalUsers, recentOrders, monthlyRevenue, topProducts] = await Promise.all([
       Order.aggregate([
         { $match: { status: { $in: ['completed', 'processing'] } } },
         { $group: { _id: null, total: { $sum: '$totalAmount' } } },
@@ -274,6 +307,29 @@ export const getAdminDashboardStats = async (_req: AuthRequest, res: Response): 
         .sort({ createdAt: -1 })
         .limit(5)
         .populate('userId', 'name email'),
+      Order.aggregate([
+        { $match: { status: { $in: ['completed', 'processing'] } } },
+        {
+          $group: {
+            _id: { $dateToString: { format: "%Y-%m", date: "$createdAt" } },
+            revenue: { $sum: "$totalAmount" }
+          }
+        },
+        { $sort: { "_id": 1 } },
+        { $limit: 6 }
+      ]),
+      Order.aggregate([
+        { $unwind: "$items" },
+        {
+          $group: {
+            _id: "$items.name",
+            sales: { $sum: "$items.quantity" },
+            revenue: { $sum: { $multiply: ["$items.price", "$items.quantity"] } }
+          }
+        },
+        { $sort: { sales: -1 } },
+        { $limit: 5 }
+      ])
     ]);
 
     const totalRevenue = revenueAgg[0]?.total ?? 0;
@@ -284,6 +340,8 @@ export const getAdminDashboardStats = async (_req: AuthRequest, res: Response): 
       totalProducts,
       totalUsers,
       recentOrders: recentOrders || [],
+      monthlyRevenue: monthlyRevenue || [],
+      topProducts: topProducts || []
     });
   } catch (error: any) {
     res.status(500).json({ message: error.message || 'Server error fetching stats.' });
